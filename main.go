@@ -1,22 +1,62 @@
 package main
 
 import (
+	"log"
+	"os"
+
+	"github.com/dwahyudi/golang-smtp/emailing"
+
 	"github.com/dwahyudi/golang-smtp/util"
+	"github.com/streadway/amqp"
 )
 
 func main() {
-	simpleMailDemo()
+	// demo.SimpleMailDemo()
+
+	emailSendWaiter()
 }
 
-func simpleMailDemo() {
-	mail := util.Mail{
-		From:       "no-reply@example00.com",
-		To:         []string{"user01@example99.com", "user02@example.com"},
-		Subject:    "Sample Subject",
-		BodyType:   "text/html",
-		Body:       "<html><body><p>Sample body</p></body></html>",
-		Attachment: []string{"temp/cat.jpg", "temp/orange.jpg"},
-	}
+func emailSendWaiter() {
+	channelName := "registration-email-welcome"
 
-	util.MailSend(mail)
+	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
+	util.CheckErr(err)
+	defer conn.Close()
+
+	ch, err := conn.Channel()
+	util.CheckErr(err)
+	defer ch.Close()
+
+	q, err := ch.QueueDeclare(
+		channelName, // name
+		false,       // durable
+		false,       // delete when unused
+		false,       // exclusive
+		false,       // no-wait
+		nil,         // arguments
+	)
+	util.CheckErr(err)
+
+	msgs, err := ch.Consume(
+		q.Name, // queue
+		"",     // consumer
+		true,   // auto-ack
+		false,  // exclusive
+		false,  // no-local
+		false,  // no-wait
+		nil,    // args
+	)
+	util.CheckErr(err)
+
+	forever := make(chan bool)
+
+	go func() {
+		for d := range msgs {
+			emailAddress := string(d.Body)
+			emailing.RegistrationWelcomeSend(emailAddress)
+		}
+	}()
+
+	log.Printf(" [*] Waiting for messages. To exit press CTRL+C")
+	<-forever
 }
