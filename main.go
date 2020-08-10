@@ -17,7 +17,7 @@ func main() {
 }
 
 func emailSendWaiter() {
-	channelName := "registration-email-welcome"
+	queueName := "registration-email-welcome"
 
 	conn, err := amqp.Dial(os.Getenv("RABBITMQ_URL"))
 	util.CheckErr(err)
@@ -28,12 +28,12 @@ func emailSendWaiter() {
 	defer ch.Close()
 
 	q, err := ch.QueueDeclare(
-		channelName, // name
-		false,       // durable
-		false,       // delete when unused
-		false,       // exclusive
-		false,       // no-wait
-		nil,         // arguments
+		queueName, // name
+		false,     // durable
+		false,     // delete when unused
+		false,     // exclusive
+		false,     // no-wait
+		nil,       // arguments
 	)
 	util.CheckErr(err)
 
